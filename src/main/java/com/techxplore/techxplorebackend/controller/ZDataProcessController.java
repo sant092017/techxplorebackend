@@ -28,10 +28,10 @@ public class ZDataProcessController {
             @RequestBody ZEnergyDataUpdateRequest zEnergyDataUpdateRequest) {
         ZEnergyDataUpdateResponse updatedFetchResponse = zEnergyDataService.updateAndFetch(zEnergyDataUpdateRequest);
         if(updatedFetchResponse == null) {
-            logger.warn("Update and fetch operation FAILED for request: {}", zEnergyDataUpdateRequest.getId());
+            logger.warn("ZDataProcess | updateAndFetch | Update and fetch operation FAILED for request: {}", zEnergyDataUpdateRequest.getId());
             throw new RuntimeException("Update and fetch operation failed");
         }else {
-            logger.info("Update and fetch operation successful for request: {}", zEnergyDataUpdateRequest.getId());
+            logger.info("ZDataProcess | updateAndFetch | Update and fetch operation successful for request: {}", zEnergyDataUpdateRequest.getId());
         }
         return updatedFetchResponse;
     }
@@ -39,6 +39,7 @@ public class ZDataProcessController {
     @GetMapping("/fetchAllEnergyData")
     public List<ZEnergyDataUpdateResponse> fetchAllEnergyData() {
         List<ZEnergyDataUpdateResponse> listOfEnergyData = zEnergyDataService.fetchAllEnergyData();
+        logger.info("ZDataProcess | fetchAllEnergyDataResponse | Fetched all energy data operation successful, Size : {}", listOfEnergyData.size());
         return listOfEnergyData;
     }
 }
