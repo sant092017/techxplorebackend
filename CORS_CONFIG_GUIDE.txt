@@ -1,0 +1,146 @@
+================================================================================
+CORS CONFIGURATION - LOCAL vs PRODUCTION (EC2)
+================================================================================
+
+NO CODE CHANGES NEEDED - Just set environment variables on EC2!
+
+================================================================================
+LOCAL DEVELOPMENT
+================================================================================
+
+File: src/main/resources/application.yml
+Allowed Origins: http://localhost:3000, http://localhost:4200, http://127.0.0.1:3000, http://127.0.0.1:4200
+
+How to run:
+  ./mvnw spring-boot:run
+
+React frontend: http://localhost:3000
+Spring Boot API: http://localhost:8077
+React API calls: http://localhost:8077/api/zdataprocess/fetchAllEnergyData ✅ ALLOWED
+
+No configuration needed - uses application.yml from resources folder.
+
+================================================================================
+EC2 PRODUCTION (Same Server - Nginx Proxy)
+================================================================================
+
+Architecture on EC2:
+  Nginx (https://yourdomain.com, Port 443)
+    ├─ / → React static files
+    ├─ /api/* → Proxies to Spring Boot (localhost:8077)
+  Spring Boot (localhost:8077, Port 8077 - internal only)
+
+File: application-prod.yml (at project root, parallel to pom.xml)
+Default: Uses environment variable ALLOWED_ORIGINS
+
+React frontend: https://yourdomain.com (served by Nginx)
+Spring Boot API: https://yourdomain.com/api (proxied by Nginx to backend)
+React API calls: https://yourdomain.com/api/zdataprocess/fetchAllEnergyData ✅ ALLOWED
+
+================================================================================
+EC2 DEPLOYMENT STEPS (NO CODE CHANGES!)
+================================================================================
+
+Step 1: Build JAR (Same as always)
+  ./mvnw clean package -DskipTests
+  Creates: target/techxplorebackend-0.0.1-SNAPSHOT.jar
+
+Step 2: Upload to EC2
+  scp -i key.pem target/*.jar ubuntu@ec2-ip:/opt/techxplore-backend/
+  scp -i key.pem application-prod.yml ubuntu@ec2-ip:/opt/techxplore-backend/
+
+Step 3: Create .env file on EC2
+  ssh -i key.pem ubuntu@ec2-ip
+
+  cat > /opt/techxplore-backend/.env << 'EOF'
+  SPRING_PROFILES_ACTIVE=prod
+  ALLOWED_ORIGINS=https://yourdomain.com,https://www.yourdomain.com
+  DB_HOST=your-rds-endpoint.rds.amazonaws.com
+  DB_PORT=5432
+  DB_NAME=techxplore_prod
+  DB_USERNAME=db_admin
+  DB_PASSWORD=StrongPassword123!@#
+  KAFKA_BOOTSTRAP_SERVERS=broker1:9092,broker2:9092
+  EOF
+
+  sudo chmod 600 /opt/techxplore-backend/.env
+
+Step 4: Setup systemd service on EC2
+  sudo nano /etc/systemd/system/techxplore-backend.service
+
+  [Unit]
+  Description=TechXplore Backend
+  After=network.target
+
+  [Service]
+  Type=simple
+  User=ubuntu
+  WorkingDirectory=/opt/techxplore-backend
+  EnvironmentFile=/opt/techxplore-backend/.env
+  ExecStart=/usr/bin/java -jar /opt/techxplore-backend/techxplorebackend-0.0.1-SNAPSHOT.jar
+  Restart=always
+  RestartSec=10
+
+  [Install]
+  WantedBy=multi-user.target
+
+Step 5: Start service
+  sudo systemctl daemon-reload
+  sudo systemctl enable techxplore-backend
+  sudo systemctl start techxplore-backend
+
+That's it! NO CODE CHANGES!
+
+================================================================================
+KEY POINTS
+================================================================================
+
+1. SAME JAR FOR BOTH LOCAL AND EC2
+   - Local: Uses application.yml (in resources)
+   - EC2: Uses application-prod.yml (at project root) + environment variables
+
+2. CORS ORIGINS SET VIA ENVIRONMENT VARIABLE
+   - Local: Hardcoded in application.yml (localhost)
+   - EC2: Set via ALLOWED_ORIGINS environment variable
+
+3. REACT AND SPRING BOOT ON SAME SERVER
+   - React: https://yourdomain.com (Nginx serves static files)
+   - Backend: https://yourdomain.com/api (Nginx proxies to localhost:8077)
+   - Same origin = no CORS issues!
+
+4. SECURE CREDENTIALS
+   - Never commit .env file
+   - Add to .gitignore
+   - Use AWS Secrets Manager for extra security
+
+================================================================================
+COMMON MISTAKES
+================================================================================
+
+❌ WRONG: Changing code or XML files for production
+✅ RIGHT: Only change environment variables
+
+❌ WRONG: Committing .env file to git
+✅ RIGHT: Add .env to .gitignore and manage separately
+
+❌ WRONG: Hardcoding yourdomain.com in source code
+✅ RIGHT: Use environment variable ALLOWED_ORIGINS
+
+================================================================================
+VERIFY CORS IS WORKING
+================================================================================
+
+Local:
+  curl -i -X OPTIONS http://localhost:8077/api/zdataprocess/fetchAllEnergyData \
+    -H "Origin: http://localhost:3000"
+
+  Should see: Access-Control-Allow-Origin: http://localhost:3000 ✅
+
+EC2:
+  curl -i -X OPTIONS https://yourdomain.com/api/zdataprocess/fetchAllEnergyData \
+    -H "Origin: https://yourdomain.com"
+
+  Should see: Access-Control-Allow-Origin: https://yourdomain.com ✅
+
+================================================================================
+

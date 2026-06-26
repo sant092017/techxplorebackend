@@ -1,0 +1,59 @@
+# ========================================
+# LOCAL DEVELOPMENT CONFIGURATION
+# ========================================
+
+server:
+  port: 8077
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/devsupport
+    username: postgres
+    password: Iy@nsha
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+
+  kafka:
+    bootstrap-servers: <your-kafka-server>:9092
+    consumer:
+      group-id: techxplore-group
+      auto-offset-reset: earliest
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+
+  # Disable auto-configurations not needed for local dev.
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.vectorstore.opensearch.autoconfigure.OpenSearchVectorStoreAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+
+#spring.security.oauth2.client.registration.auth0.client-id: dummy-client-id
+#spring.security.oauth2.client.registration.auth0.client-secret: dummy-client-secret
+#spring.security.oauth2.client.registration.auth0.scope: openid,profile,email
+#spring.security.oauth2.client.registration.auth0.redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+#spring.security.oauth2.client.registration.auth0.authorization-grant-type: authorization_code
+#spring.security.oauth2.client.provider.auth0.issuer-uri: https://YOUR_DOMAIN/.well-known/openid-configuration
+#spring.security.oauth2.client.provider.auth0.enabled: false   # 🔒 Disabled for now
+
+logging:
+  level:
+    root: INFO
+    org.springframework.web: DEBUG
+
+# ========================================
+# CORS CONFIGURATION (WebConfig.java uses this)
+# ========================================
+# For local development: localhost:3000, localhost:4200
+allowed:
+  origins: http://localhost:3000,http://localhost:4200,http://127.0.0.1:3000,http://127.0.0.1:4200
