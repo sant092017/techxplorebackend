@@ -8,52 +8,118 @@ server:
     context-path: /api
 
 spring:
+  application:
+    name: techxplore-backend
+
+  # ── Database ──────────────────────────
   datasource:
     url: jdbc:postgresql://localhost:5432/devsupport
     username: postgres
     password: Iy@nsha
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
 
+  # ── JPA / Hibernate ───────────────────
   jpa:
     hibernate:
-      ddl-auto: update
-    show-sql: true
+      ddl-auto: update          # LOCAL: auto update schema
+    show-sql: true              # LOCAL: log SQL queries
+    open-in-view: false
     properties:
       hibernate:
         format_sql: true
-    database-platform: org.hibernate.dialect.PostgreSQLDialect
+        generate_statistics: false
 
-  kafka:
-    bootstrap-servers: <your-kafka-server>:9092
-    consumer:
-      group-id: techxplore-group
-      auto-offset-reset: earliest
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+  # ── Kafka (disabled for now) ──────────
+  # kafka:
+  #   bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  #   consumer:
+  #     group-id: techxplore-group
+  #     auto-offset-reset: earliest
+  #   producer:
+  #     key-serializer: org.apache.kafka.common.serialization.StringSerializer
+  #     value-serializer: org.apache.kafka.common.serialization.StringSerializer
 
-  # Disable auto-configurations not needed for local dev.
+  # ── Elasticsearch (disabled for now) ──
+  # elasticsearch:
+  #   uris: ${ELASTICSEARCH_URIS:http://localhost:9200}
+  #   connection-timeout: 5s
+  #   socket-timeout: 60s
+
+  # ── OAuth2 (disabled for now) ─────────
+  # security:
+  #   oauth2:
+  #     client:
+  #       registration:
+  #         auth0:
+  #           client-id: ${AUTH0_CLIENT_ID}
+  #           client-secret: ${AUTH0_CLIENT_SECRET}
+  #           scope: openid,profile,email
+  #           redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+  #           authorization-grant-type: authorization_code
+  #       provider:
+  #         auth0:
+  #           issuer-uri: https://YOUR_DOMAIN/.well-known/openid-configuration
+
+  # ── Auto-configuration exclusions ─────
   autoconfigure:
     exclude:
       - org.springframework.ai.vectorstore.opensearch.autoconfigure.OpenSearchVectorStoreAutoConfiguration
       - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.actuate.autoconfigure.security.servlet.ManagementWebSecurityAutoConfiguration
 
-#spring.security.oauth2.client.registration.auth0.client-id: dummy-client-id
-#spring.security.oauth2.client.registration.auth0.client-secret: dummy-client-secret
-#spring.security.oauth2.client.registration.auth0.scope: openid,profile,email
-#spring.security.oauth2.client.registration.auth0.redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
-#spring.security.oauth2.client.registration.auth0.authorization-grant-type: authorization_code
-#spring.security.oauth2.client.provider.auth0.issuer-uri: https://YOUR_DOMAIN/.well-known/openid-configuration
-#spring.security.oauth2.client.provider.auth0.enabled: false   # 🔒 Disabled for now
-
+# ── Logging ───────────────────────────────
 logging:
   level:
     root: INFO
+    com.techxplore: DEBUG       # LOCAL: verbose app logs
     org.springframework.web: DEBUG
+    org.springframework.security: INFO
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
 
 # ========================================
-# CORS CONFIGURATION (WebConfig.java uses this)
+# SPRING BOOT ACTUATOR - HEALTH CHECK
 # ========================================
-# For local development: localhost:3000, localhost:4200
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health, info, metrics
+  endpoint:
+    health:
+      show-details: always      # LOCAL: always show full details
+      show-components: always
+  health:
+    db:
+      enabled: true             # Checks PostgreSQL connectivity
+    diskspace:
+      enabled: true             # Checks available disk space
+    elasticsearch:
+      enabled: false            # Explicitly disable Elasticsearch health check
+    # kafka:
+    #   enabled: true           # Uncomment when Kafka is configured
+    # ssl:
+    #   enabled: true           # Uncomment when SSL is configured
+  info:
+    env:
+      enabled: true
+
+# ── App info (exposed via /actuator/info) ─
+info:
+  app:
+    name: TechXplore Backend
+    version: 0.0.1-SNAPSHOT
+    description: Backend API
+
+# ========================================
+# CORS CONFIGURATION
+# ========================================
 allowed:
   origins: http://localhost:3000,http://localhost:4200,http://127.0.0.1:3000,http://127.0.0.1:4200
